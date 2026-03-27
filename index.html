@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Neomedia</title>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --border: #334155;
+            --text-muted: #94a3b8;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Barlow', 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: white;
+            margin: 0;
+            padding: 30px 20px;
+            text-align: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: #e2e8f0;
+            margin-bottom: 6px;
+        }
+
+        #status {
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            font-size: 0.95rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            max-width: 860px;
+            margin: 24px auto;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .card:not(.vacio):hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+
+        .card-btn {
+            all: unset;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 24px 16px;
+            cursor: pointer;
+            background: var(--accent);
+            width: 100%;
+            transition: background 0.15s ease;
+        }
+
+        .card-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .card-btn:disabled,
+        .card.vacio .card-btn {
+            background: #2d3d52;
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        .play-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.18);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .play-icon svg {
+            width: 18px;
+            height: 18px;
+            fill: white;
+            margin-left: 3px;
+        }
+
+        .card-btn .titulo {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: white;
+            line-height: 1.4;
+            text-align: center;
+            word-break: break-word;
+            white-space: normal;
+        }
+
+        .card-footer {
+            padding: 8px 14px;
+            background: rgba(0,0,0,0.2);
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        /* ── Overlay ── */
+        #overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: black;
+            z-index: 1000;
+            flex-direction: column;
+        }
+
+        #overlay.activo {
+            display: flex;
+        }
+
+        #player {
+            width: 100%;
+            flex: 1;
+            border: none;
+        }
+
+        /* Barra inferior de cierre */
+        #barra-cierre {
+            background: #1e293b;
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            border-top: 1px solid #334155;
+            flex-shrink: 0;
+        }
+
+        #btn-volver {
+            all: unset;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #ef4444;
+            color: white;
+            font-family: 'Barlow', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            padding: 13px 32px;
+            border-radius: 10px;
+            cursor: pointer;
+            letter-spacing: 0.02em;
+            transition: background 0.15s;
+        }
+
+        #btn-volver:hover {
+            background: #dc2626;
+        }
+
+        #btn-volver svg {
+            width: 22px;
+            height: 22px;
+            fill: white;
+            flex-shrink: 0;
+        }
+
+        #hint-teclado {
+            font-size: 0.78rem;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Panel de Reproducción — Ahora Play</h1>
+    <div id="status">Cargando videos…</div>
+    <div class="grid" id="grid"></div>
+
+    <div id="overlay">
+        <iframe id="player" allow="autoplay; fullscreen" allowfullscreen></iframe>
+        <div id="barra-cierre">
+            <button id="btn-volver" onclick="cerrar()">
+                <!-- Ícono "casa" -->
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                </svg>
+                Volver al menú principal
+            </button>
+            <span id="hint-teclado">o presioná ESC</span>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzYN7fSMQUF8LeLso92R_rexl9ka1nf7UMqMnGihrM5FKH81L1WRDOV0Nh1vD78cA2G/exec';
+
+        async function cargar() {
+            try {
+                const res = await fetch(API_URL);
+                const data = await res.json();
+                document.getElementById('status').style.display = 'none';
+                const grid = document.getElementById('grid');
+                grid.innerHTML = '';
+
+                data.forEach((vid, i) => {
+                    const num = i + 1;
+                    const box = document.createElement('div');
+                    box.className = 'card' + (!vid ? ' vacio' : '');
+
+                    if (vid) {
+                        // Quitamos la extensión y el número inicial (ej: "01 ", "02 - ", "03_")
+                        const nombreLimpio = vid.nombre
+                            .replace(/\.[^/.]+$/, '')           // saca la extensión
+                            .replace(/^0?\d+[\s\-_.]+/, '');    // saca el número del inicio
+                        box.innerHTML = `
+                            <button class="card-btn" onclick="play('${vid.id}')">
+                                <div class="play-icon">
+                                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                </div>
+                                <span class="titulo">${nombreLimpio}</span>
+                            </button>
+                            <div class="card-footer">Botón ${num}</div>
+                        `;
+                    } else {
+                        box.innerHTML = `
+                            <button class="card-btn" disabled>
+                                <div class="play-icon">
+                                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                </div>
+                                <span class="titulo">Sin video</span>
+                            </button>
+                            <div class="card-footer">Botón ${num}</div>
+                        `;
+                    }
+
+                    grid.appendChild(box);
+                });
+            } catch (e) {
+                document.getElementById('status').innerText = "Error de conexión con Drive.";
+            }
+        }
+
+        function play(id) {
+            const player = document.getElementById('player');
+            const overlay = document.getElementById('overlay');
+
+            // autoplay=1 intenta reproducción automática
+            player.src = `https://drive.google.com/file/d/${id}/preview?authuser=0&autoplay=1`;
+            overlay.classList.add('activo');
+
+            // Solicitamos pantalla completa sobre el overlay
+            if (overlay.requestFullscreen) {
+                overlay.requestFullscreen().catch(() => {});
+            } else if (overlay.webkitRequestFullscreen) {
+                overlay.webkitRequestFullscreen();
+            }
+        }
+
+        function cerrar() {
+            const player = document.getElementById('player');
+            const overlay = document.getElementById('overlay');
+            overlay.classList.remove('activo');
+            player.src = '';
+            if (document.fullscreenElement) document.exitFullscreen();
+        }
+
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
+        cargar();
+    </script>
+</body>
+</html>
